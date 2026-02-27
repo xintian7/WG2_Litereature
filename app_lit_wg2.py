@@ -94,6 +94,20 @@ div.stDownloadButton > button:hover {
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">Climate Knowledge Finder</div>', unsafe_allow_html=True)
+st.markdown("<h3 style='text-align:center'>Settings</h3>", unsafe_allow_html=True)
+
+# OpenAlex API control below title
+label_col, input_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**OpenAlex API**")
+with input_col:
+    openalex_api = st.text_input(
+        "",
+        value="",
+        placeholder="Enter OpenAlex API key",
+        label_visibility="collapsed",
+        key="openalex_api_input",
+    )
 
 # Sidebar
 
@@ -133,6 +147,7 @@ with st.sidebar:
     #     st.sidebar.caption("IPCC logo not found at assets/ipcc.png")
 
 # Main search section (centered title and controls in one row)
+st.divider()
 st.markdown("<h3 style='text-align:center'>Grey literature searching</h3>", unsafe_allow_html=True)
 
 # Keyword: label+help line, then control line
