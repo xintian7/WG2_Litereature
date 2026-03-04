@@ -7,7 +7,13 @@ from button_search import perform_search
 from button_analyze import perform_analyze
 from button_neo4j import build_neo4j_cypher
 from button_html import render_html_preview
-from utils import record_identifier, DISPLAY_CONTAINER_HEIGHT, MAX_WORK_TYPES
+from utils import (
+    record_identifier,
+    DISPLAY_CONTAINER_HEIGHT,
+    MAX_WORK_TYPES,
+    UN_MEMBER_STATES,
+    UN_MEMBER_STATE_TO_COUNTRY_CODE,
+)
 
 
 def _payload_after_skips(payload: dict | None) -> dict | None:
@@ -100,6 +106,19 @@ with input_col:
         placeholder="Enter OpenAlex API key",
         label_visibility="collapsed",
         key="openalex_api_input",
+    )
+
+# OpenAI API control below OpenAlex API
+label_col, input_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**OpenAI API**")
+with input_col:
+    openai_api = st.text_input(
+        "",
+        value="",
+        placeholder="Enter OpenAI API key",
+        label_visibility="collapsed",
+        key="openai_api_input",
     )
 
 # Sidebar
@@ -213,6 +232,102 @@ with type_col2:
         st.warning(f"You selected more than {MAX_WORK_TYPES} types — only the first {MAX_WORK_TYPES} will be used.")
         work_types = work_types[:MAX_WORK_TYPES]
 
+# Language: label+help line, then control line
+label_col, help_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**Language**")
+with help_col:
+    st.caption("Filter results by language. Default is English.")
+lang_col1, lang_col2 = st.columns([1, 4])
+with lang_col1:
+    st.write("")
+with lang_col2:
+    language_option = st.selectbox(
+        "",
+        options=[
+            "English",
+            "Arabic",
+            "Chinese",
+            "French",
+            "Russian",
+            "Spanish",
+            "Dutch",
+            "German",
+            "Hindi",
+            "Indonesian",
+            "Italian",
+            "Japanese",
+            "Korean",
+            "Persian",
+            "Polish",
+            "Portuguese",
+            "Turkish",
+            "Ukrainian",
+            "Vietnamese",
+        ],
+        index=0,
+        label_visibility="collapsed",
+        key="lang",
+    )
+    language_code_map = {
+        "English": "en",
+        "Arabic": "ar",
+        "Chinese": "zh",
+        "French": "fr",
+        "Russian": "ru",
+        "Spanish": "es",
+        "Dutch": "nl",
+        "German": "de",
+        "Hindi": "hi",
+        "Indonesian": "id",
+        "Italian": "it",
+        "Japanese": "ja",
+        "Korean": "ko",
+        "Persian": "fa",
+        "Polish": "pl",
+        "Portuguese": "pt",
+        "Turkish": "tr",
+        "Ukrainian": "uk",
+        "Vietnamese": "vi",
+    }
+    selected_language = language_code_map.get(language_option)
+
+# Global South: label+help line, then checkbox line
+label_col, help_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**Global South**")
+with help_col:
+    st.caption("If checked, only works with institutions from the Global South are included.")
+gs_col1, gs_col2 = st.columns([1, 4])
+with gs_col1:
+    st.write("")
+with gs_col2:
+    filter_global_south = st.checkbox(
+        "Global South",
+        value=False,
+        key="global_south_filter",
+    )
+
+# UN member states: label+help line, then control line
+label_col, help_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**UN member states**")
+with help_col:
+    st.caption("Filter results to works where at least one institution is from the selected UN member state (https://www.un.org/en/about-us/member-states). When this filter is not applied, results will include works from any country or institution worldwide.")
+state_col1, state_col2 = st.columns([1, 4])
+with state_col1:
+    st.write("")
+with state_col2:
+    selected_member_state = st.selectbox(
+        "",
+        options=UN_MEMBER_STATES,
+        index=None,
+        placeholder="Select a UN member state",
+        label_visibility="collapsed",
+        key="un_member_state",
+    )
+    selected_member_state_code = UN_MEMBER_STATE_TO_COUNTRY_CODE.get(selected_member_state or "")
+
 # Number of results: label line then control line
 label_col, help_col = st.columns([1, 4])
 with label_col:
@@ -269,6 +384,9 @@ with btn_col:
                 year_range,
                 num_results,
                 work_types=work_types,
+                language=selected_language,
+                is_global_south=filter_global_south,
+                institution_country_code=selected_member_state_code,
                 container=results_container,
                 display_limit=5,
                 sort_by=sort_by,

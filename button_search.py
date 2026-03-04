@@ -48,6 +48,9 @@ def perform_search(
     year_range: tuple[int, int],
     num_results: int,
     work_types: list[str] | None = None,
+    language: str | None = None,
+    is_global_south: bool = False,
+    institution_country_code: str | None = None,
     container: Any = None,
     display_limit: int = 5,
     sort_by: str = "Relevance",
@@ -87,6 +90,16 @@ def perform_search(
                 "from_publication_date": f"{start_year}-01-01",
                 "to_publication_date": f"{end_year}-12-31",
             }
+            if language:
+                filter_kwargs["language"] = language
+            if institution_country_code:
+                filter_kwargs["institutions.country_code"] = institution_country_code
+
+            def _build_base_query() -> Any:
+                query = Works().search(combined_query).filter(**filter_kwargs)
+                if is_global_south:
+                    query = query.filter(institutions={"is_global_south": True})
+                return query
 
             all_results = []
 
@@ -126,7 +139,7 @@ def perform_search(
                 for t in types_to_query:
                     per_type_results = []
                     try:
-                        type_query = Works().search(combined_query).filter(**filter_kwargs, type=t)
+                        type_query = _build_base_query().filter(type=t)
                         try:
                             openalex_total += int(type_query.count() or 0)
                         except Exception:
@@ -157,7 +170,7 @@ def perform_search(
             else:
                 # No type filter: aggregate across keywords and trim to total
                 try:
-                    base_query = Works().search(combined_query).filter(**filter_kwargs)
+                    base_query = _build_base_query()
                     try:
                         openalex_total = int(base_query.count() or 0)
                     except Exception:

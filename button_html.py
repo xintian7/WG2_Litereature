@@ -148,14 +148,43 @@ def render_html_preview(payload: dict | None, container: Any = None, top_n: int 
         </div>
         """
 
-        card_col, skip_col = display.columns([20, 1])
-        with card_col:
-            card_col.markdown(card_html, unsafe_allow_html=True)
-        with skip_col:
+        display.markdown(card_html, unsafe_allow_html=True)
+
+        btn_col1, btn_col2, btn_col3, btn_col4 = display.columns(4)
+        with btn_col1:
             st.button(
                 "Skip",
                 key=f"skip_pub_{rec_hash}",
-                use_container_width=True,
+                type="primary",
                 on_click=_add_skipped_publication,
                 args=(rec_id,),
+                use_container_width=True,
             )
+        with btn_col2:
+            similar_clicked = st.button(
+                "Similar works",
+                key=f"similar_pub_{rec_hash}",
+                type="primary",
+                use_container_width=True,
+            )
+        with btn_col3:
+            citing_clicked = st.button(
+                "Citing works",
+                key=f"citing_pub_{rec_hash}",
+                type="primary",
+                use_container_width=True,
+            )
+        with btn_col4:
+            cited_clicked = st.button(
+                "Cited works",
+                key=f"cited_pub_{rec_hash}",
+                type="primary",
+                use_container_width=True,
+            )
+
+        if similar_clicked:
+            display.info("Similar works is under construction.")
+        if citing_clicked:
+            display.info("Citing works is under construction.")
+        if cited_clicked:
+            display.info("Cited works is under construction.")
