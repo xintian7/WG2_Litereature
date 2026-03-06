@@ -19,19 +19,24 @@ from utils import (
 st.markdown("""
 <style>
 
-/* Hide GitHub link */
-a[href*="github.com"] {
-    display: none !important;
+/* Hide top toolbar (Fork + GitHub) */
+[data-testid="stToolbar"]{
+    display:none;
 }
 
-/* Hide Fork button */
-button:has(svg) {
-    display: none !important;
+/* Hide bottom-left decoration (GitHub avatar) */
+[data-testid="stDecoration"]{
+    display:none;
 }
 
-/* Hide GitHub avatar at the bottom */
-[data-testid="stDecoration"] {
-    display: none;
+/* Hide floating deploy/share button */
+.stDeployButton{
+    display:none;
+}
+
+/* Hide Streamlit footer */
+footer{
+    display:none;
 }
             
 </style>
