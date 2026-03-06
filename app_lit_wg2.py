@@ -27,6 +27,7 @@ st.markdown("""
 /* Hide Streamlit footer ("Hosted with Streamlit") */
 footer {
     visibility: hidden;
+    display: none !important;
 }
 
 /* Hide GitHub + Streamlit footer container */
