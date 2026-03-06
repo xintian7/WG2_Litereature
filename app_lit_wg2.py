@@ -16,15 +16,26 @@ from utils import (
 )
 
 
-hide_menu = """
+st.markdown("""
 <style>
-MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: visible;}
-</style>
-"""
 
-st.markdown(hide_menu, unsafe_allow_html=True)
+/* Hide GitHub link */
+a[href*="github.com"] {
+    display: none !important;
+}
+
+/* Hide Fork button */
+button:has(svg) {
+    display: none !important;
+}
+
+/* Hide GitHub avatar at the bottom */
+[data-testid="stDecoration"] {
+    display: none;
+}
+            
+</style>
+""", unsafe_allow_html=True)
 
 
 def _payload_after_skips(payload: dict | None) -> dict | None:
