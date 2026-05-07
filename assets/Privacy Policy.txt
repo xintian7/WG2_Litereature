@@ -1,0 +1,50 @@
+# **Privacy Policy**
+
+## **1. Introduction**
+
+This preliminary Privacy Policy outlines how Climate Literature Navigator may collect, use, and protect information. As this is an experimental research project under active development, this policy is subject to change and should not be considered final or legally binding.
+
+## **2. Information We May Collect**
+
+We may potentially collect the following types of information:
+
+- Search queries and usage patterns that may help improve the service
+- Voluntary feedback and survey responses
+
+## **3. Potential Uses of Information**
+
+Information collected may be used for purposes such as:
+
+- Providing and developing the service
+- Research purposes related to the project goals
+- Responding to user inquiries when possible
+- Understanding general usage patterns
+
+## **4. Data Security Considerations**
+
+While we aim to implement reasonable security measures, including the use of secure third-party services for operational logging (e.g., Notion), we cannot guarantee the absolute security of any information transmitted or stored. Logged data may include submitted questions, generated answers, timestamps, and IP address where available. By using this experimental service, you acknowledge these limitations.
+## **5. Data Retention**
+
+We have not yet established formal data retention policies. Information may be retained for indefinite periods as needed for research and development purposes.
+
+## **6. User Options**
+
+As we develop this service, we may implement features that allow users to:
+
+- Request information about data we may hold
+- Request potential corrections or deletions
+- Opt out of certain data collection practices
+
+However, these features are not guaranteed and may be limited during development.
+
+## **7. Policy Updates**
+
+This policy is preliminary and subject to change at any time without notice as the project evolves. Users are encouraged to check this page periodically for any changes.
+
+## **8. Disclaimer**
+
+This experimental research project is provided "as is" without warranties of any kind, either express or implied. We do not assume any liability for the use of this service or any consequences arising from its use.
+
+## **9. Contact**
+
+If you have questions about this preliminary policy, you may attempt to contact us through our feedback form, though we cannot guarantee a response.

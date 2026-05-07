@@ -1,10 +1,10 @@
 # Guidance
 
-This document helps IPCC AR7 WGII authors use **Climate Knowledge Finder (version 0.1)** to look for grey literature about climate-related topics.
+This document helps IPCC AR7 WGII authors use **Climate Literature Navigator (version 0.1)** to look for grey literature about climate-related topics.
 
 ## 1) What this app does 
 
-**Climate Knowledge Finder** is a Web App designed for:
+**Climate Literature Navigator** is a Web App designed for:
 
 -   searching climate-related grey literature from [OpenAlex](https://openalex.org/),
 -   reviewing and analyzing returned records,

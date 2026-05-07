@@ -67,6 +67,38 @@ def _payload_after_skips(payload: dict | None) -> dict | None:
     return filtered_payload
 
 
+def render_text_document_page(doc_key: str) -> None:
+    """Render a markdown document from assets based on the selected key."""
+    docs = {
+        "privacy": ("Privacy Policy", "Privacy Policy.txt"),
+        "terms": ("Terms of Use", "Terms of Use.txt"),
+    }
+
+    doc_meta = docs.get(doc_key)
+    if not doc_meta:
+        st.error("Requested document was not found.")
+        return
+
+    doc_title, doc_filename = doc_meta
+    doc_path = Path(__file__).parent / "assets" / doc_filename
+
+    st.divider()
+    st.markdown(f"## {doc_title}")
+
+    if not doc_path.exists():
+        st.error(f"Document file not found: assets/{doc_filename}")
+        return
+
+    doc_text = doc_path.read_text(encoding="utf-8").strip()
+    if not doc_text:
+        st.warning(f"Document is empty: assets/{doc_filename}")
+    else:
+        st.markdown(doc_text)
+
+    if st.button("Back to app", key=f"back_{doc_key}"):
+        st.session_state["view_doc"] = None
+
+
 # ---- IPCC STYLE ----
 st.markdown("""
 <style>
@@ -110,7 +142,7 @@ div.stDownloadButton > button:hover {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">Climate Knowledge Finder</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title"> Climate Literature Navigator 🔎 </div>', unsafe_allow_html=True)
 st.markdown("<h3 style='text-align:center'>Settings</h3>", unsafe_allow_html=True)
 
 # OpenAlex API control below title
@@ -121,23 +153,23 @@ with input_col:
     openalex_api = st.text_input(
         "",
         value="",
-        placeholder="Enter OpenAlex API key",
+        placeholder="Placeholder for a future version (currently not required for version 0.1)",
         label_visibility="collapsed",
         key="openalex_api_input",
     )
 
-# OpenAI API control below OpenAlex API
-label_col, input_col = st.columns([1, 4])
-with label_col:
-    st.markdown("**OpenAI API**")
-with input_col:
-    openai_api = st.text_input(
-        "",
-        value="",
-        placeholder="Enter OpenAI API key",
-        label_visibility="collapsed",
-        key="openai_api_input",
-    )
+# # OpenAI API control below OpenAlex API
+# label_col, input_col = st.columns([1, 4])
+# with label_col:
+#     st.markdown("**OpenAI API**")
+# with input_col:
+#     openai_api = st.text_input(
+#         "",
+#         value="",
+#         placeholder="Enter OpenAI API key",
+#         label_visibility="collapsed",
+#         key="openai_api_input",
+#     )
 
 # Sidebar
 
@@ -145,20 +177,30 @@ with input_col:
 with st.sidebar:
     st.header("About")
     st.markdown(
-        "<span style='color: #00a9cf; font-weight: bold;'>Climate Knowledge Finder</span> (ver 0.1) "
-        "is a web app developed by the IPCC [WGII](https://www.ipcc.ch/working-group/wg2/) TSU to help IPCC authors find climate-related grey literature from [OpenAlex](https://openalex.org)'s database. "
-        "Please contact xxx@ipccwg2.org if you have any questions or suggestions.",
+        "<span style='color: #00a9cf; font-weight: bold;'>Climate Literature Navigator</span> (ver 0.1) "
+        "is a web app developed by the IPCC [WGII](https://www.ipcc.ch/working-group/wg2/) TSU to help IPCC authors find climate-related literature from [OpenAlex](https://openalex.org)'s database. "
+        "Please contact tsu@ipccwg2.org if you have any questions or suggestions.",
         unsafe_allow_html=True
     )
     # Sidebar keeps About and Disclaimer only; search controls moved to main page
 
     st.sidebar.markdown("### Disclaimer")
+    if st.sidebar.button("View Terms of Use", key="view_terms"):
+        st.session_state["view_doc"] = "terms"
+    if st.sidebar.button("View Privacy Policy", key="view_privacy"):
+        st.session_state["view_doc"] = "privacy"
+
     st.sidebar.markdown(
-        "The information provided by "
-        "<span style='color: #00a9cf; font-weight: bold;'>Climate Knowledge Finder</span> "
+        "Please carefully review the Terms of Use and Privacy Policy before using this app. "
+        "By using the app, you agree to the terms outlined in these documents."
+    )
+
+    st.sidebar.markdown(
+        "<p>The information provided by "
+        "<span style='color: #00a9cf; font-weight: bold;'>Climate Literature Navigator</span> "
         " is sourced from [OpenAlex](https://openalex.org). "
         "While we strive to ensure accuracy, we cannot guarantee the completeness or reliability of the data. "
-        "Users are encouraged to verify the information independently before making decisions based on it.",
+        "Users are encouraged to verify the information independently before making decisions based on it.</p>",
         unsafe_allow_html=True
     )
 
@@ -179,6 +221,11 @@ with st.sidebar:
 # Main search section (centered title and controls in one row)
 st.divider()
 st.markdown("<h3 style='text-align:center'>Grey literature searching</h3>", unsafe_allow_html=True)
+
+# If a document view is requested, render it and stop further UI rendering
+if st.session_state.get("view_doc"):
+    render_text_document_page(st.session_state.get("view_doc"))
+    st.stop()
 
 # Keyword: label+help line, then control line
 label_col, help_col = st.columns([1, 4])
