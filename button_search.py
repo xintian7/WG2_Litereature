@@ -329,25 +329,10 @@ def perform_search(
 
     openalex_total_text = str(openalex_total) if openalex_total else "an unknown number of"
     summary_text = (
-        f"OpenAlex reports about {openalex_total_text} matches. "
-        f"Returned {len(df)} unique results."
+        f"OpenAlex reports {openalex_total_text} matches. "
+        f"Returned {len(df)} unique results. Json & CSV are available for download."
     )
-    caption_text = (
-        f"Showing the first {len(df_display)} results on screen. "
-        "Download the CSV or JSON to view all returned results."
-    )
-    display_json = json.dumps(
-        df_display.to_dict(orient="records"),
-        indent=2,
-        ensure_ascii=False,
-    )
-
     display.success(summary_text)
-    display.caption(caption_text)
-
-    # Present results in the provided container as JSON-like output with scroll
-    json_container = display.container(height=DISPLAY_CONTAINER_HEIGHT, border=True)
-    json_container.code(display_json, language="json")
 
     csv = df.to_csv(index=False).encode("utf-8")
     json_full = json.dumps(
@@ -362,6 +347,4 @@ def perform_search(
         "openalex_total": openalex_total,
         "shown": len(df_display),
         "summary": summary_text,
-        "caption": caption_text,
-        "display_json": display_json,
     }

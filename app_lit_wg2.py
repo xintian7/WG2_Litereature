@@ -83,7 +83,7 @@ def render_text_document_page(doc_key: str) -> None:
     doc_path = Path(__file__).parent / "assets" / doc_filename
 
     st.divider()
-    st.markdown(f"## {doc_title}")
+    st.markdown("## Climate Literature Navigator")
 
     if not doc_path.exists():
         st.error(f"Document file not found: assets/{doc_filename}")
@@ -93,11 +93,41 @@ def render_text_document_page(doc_key: str) -> None:
     if not doc_text:
         st.warning(f"Document is empty: assets/{doc_filename}")
     else:
+        lines = doc_text.splitlines()
+        if lines:
+            first_line = lines[0].lstrip("# ").strip().strip("*")
+            if first_line.lower() == doc_title.lower():
+                doc_text = "\n".join(lines[1:]).lstrip()
         st.markdown(doc_text)
 
-    if st.button("Back to app", key=f"back_{doc_key}"):
-        st.session_state["view_doc"] = None
+    st.markdown("[Back to Climate Literature Navigator](?doc=)")
 
+
+def _get_doc_query_param() -> str | None:
+    """Return the requested document key from query params, if any."""
+    try:
+        query_params = st.query_params
+        doc_key = query_params.get("doc")
+    except Exception:
+        query_params = st.experimental_get_query_params()
+        doc_values = query_params.get("doc")
+        doc_key = doc_values[0] if isinstance(doc_values, list) and doc_values else doc_values
+
+    if isinstance(doc_key, list):
+        doc_key = doc_key[0] if doc_key else None
+
+    if doc_key is None:
+        return None
+
+    doc_key = str(doc_key).strip()
+    return doc_key or None
+
+
+# Render doc pages before the main UI.
+doc_key = _get_doc_query_param()
+if doc_key:
+    render_text_document_page(doc_key)
+    st.stop()
 
 # ---- IPCC STYLE ----
 st.markdown("""
@@ -111,6 +141,12 @@ st.markdown("""
     font-size: 42px;
     font-weight: 700;
     letter-spacing: 1px;
+}
+
+/* Center main content with 20% gutters and 60% content width */
+section.main > div.block-container {
+    padding-left: 20%;
+    padding-right: 20%;
 }
 
 /* Primary button styling */
@@ -178,27 +214,22 @@ with st.sidebar:
     st.header("About")
     st.markdown(
         "<span style='color: #00a9cf; font-weight: bold;'>Climate Literature Navigator</span> (ver 0.1) "
-        "is a web app developed by the IPCC [WGII](https://www.ipcc.ch/working-group/wg2/) TSU to help IPCC authors find climate-related literature from [OpenAlex](https://openalex.org)'s database. "
+        "is a web app developed by the <a href='https://www.ipcc.ch/working-group/wg2/'>IPCC WGII</a> TSU to help IPCC authors find climate-related literature from <a href='https://openalex.org'>OpenAlex</a>'s database. "
         "Please contact tsu@ipccwg2.org if you have any questions or suggestions.",
         unsafe_allow_html=True
     )
     # Sidebar keeps About and Disclaimer only; search controls moved to main page
 
     st.sidebar.markdown("### Disclaimer")
-    if st.sidebar.button("View Terms of Use", key="view_terms"):
-        st.session_state["view_doc"] = "terms"
-    if st.sidebar.button("View Privacy Policy", key="view_privacy"):
-        st.session_state["view_doc"] = "privacy"
-
     st.sidebar.markdown(
-        "Please carefully review the Terms of Use and Privacy Policy before using this app. "
+        "Please carefully review the [Terms of Use](?doc=terms) and [Privacy Policy](?doc=privacy) before using this app. "
         "By using the app, you agree to the terms outlined in these documents."
     )
 
     st.sidebar.markdown(
-        "<p>The information provided by "
+        "<p>Please also note that the information provided by "
         "<span style='color: #00a9cf; font-weight: bold;'>Climate Literature Navigator</span> "
-        " is sourced from [OpenAlex](https://openalex.org). "
+        " is fully sourced from <a href='https://openalex.org'>OpenAlex</a>. "
         "While we strive to ensure accuracy, we cannot guarantee the completeness or reliability of the data. "
         "Users are encouraged to verify the information independently before making decisions based on it.</p>",
         unsafe_allow_html=True
@@ -220,12 +251,7 @@ with st.sidebar:
 
 # Main search section (centered title and controls in one row)
 st.divider()
-st.markdown("<h3 style='text-align:center'>Grey literature searching</h3>", unsafe_allow_html=True)
-
-# If a document view is requested, render it and stop further UI rendering
-if st.session_state.get("view_doc"):
-    render_text_document_page(st.session_state.get("view_doc"))
-    st.stop()
+st.markdown("<h3 style='text-align:center'>Literature searching</h3>", unsafe_allow_html=True)
 
 # Keyword: label+help line, then control line
 label_col, help_col = st.columns([1, 4])
@@ -268,24 +294,18 @@ with type_col2:
             "article",
             "book",
             "book-chapter",
-            "book-section",
-            "database",
             "dataset",
             "dissertation",
             "editorial",
             "erratum",
-            "grant",
             "letter",
-            "libguides",
-            "other",
+            "monograph",
             "paratext",
             "peer-review",
             "preprint",
             "reference-entry",
             "report",
-            "report-component",
             "review",
-            "software",
             "standard",
             "supplementary-materials",
         ],
@@ -316,19 +336,19 @@ with lang_col2:
             "French",
             "Russian",
             "Spanish",
-            "Dutch",
-            "German",
-            "Hindi",
-            "Indonesian",
-            "Italian",
-            "Japanese",
-            "Korean",
-            "Persian",
-            "Polish",
-            "Portuguese",
-            "Turkish",
-            "Ukrainian",
-            "Vietnamese",
+            # "Dutch",
+            # "German",
+            # "Hindi",
+            # "Indonesian",
+            # "Italian",
+            # "Japanese",
+            # "Korean",
+            # "Persian",
+            # "Polish",
+            # "Portuguese",
+            # "Turkish",
+            # "Ukrainian",
+            # "Vietnamese",
         ],
         index=0,
         label_visibility="collapsed",
@@ -341,44 +361,45 @@ with lang_col2:
         "French": "fr",
         "Russian": "ru",
         "Spanish": "es",
-        "Dutch": "nl",
-        "German": "de",
-        "Hindi": "hi",
-        "Indonesian": "id",
-        "Italian": "it",
-        "Japanese": "ja",
-        "Korean": "ko",
-        "Persian": "fa",
-        "Polish": "pl",
-        "Portuguese": "pt",
-        "Turkish": "tr",
-        "Ukrainian": "uk",
-        "Vietnamese": "vi",
+        # "Dutch": "nl",
+        # "German": "de",
+        # "Hindi": "hi",
+        # "Indonesian": "id",
+        # "Italian": "it",
+        # "Japanese": "ja",
+        # "Korean": "ko",
+        # "Persian": "fa",
+        # "Polish": "pl",
+        # "Portuguese": "pt",
+        # "Turkish": "tr",
+        # "Ukrainian": "uk",
+        # "Vietnamese": "vi",
     }
     selected_language = language_code_map.get(language_option)
 
-# Global South: label+help line, then checkbox line
-label_col, help_col = st.columns([1, 4])
-with label_col:
-    st.markdown("**Global South**")
-with help_col:
-    st.caption("If checked, only works with institutions from the Global South are included.")
-gs_col1, gs_col2 = st.columns([1, 4])
-with gs_col1:
-    st.write("")
-with gs_col2:
-    filter_global_south = st.checkbox(
-        "Global South",
-        value=False,
-        key="global_south_filter",
-    )
+# Global South filter is not used for now.
+# label_col, help_col = st.columns([1, 4])
+# with label_col:
+#     st.markdown("**Global South**")
+# with help_col:
+#     st.caption("If checked, only works with institutions from the Global South are included.")
+# gs_col1, gs_col2 = st.columns([1, 4])
+# with gs_col1:
+#     st.write("")
+# with gs_col2:
+#     filter_global_south = st.checkbox(
+#         "Global South",
+#         value=False,
+#         key="global_south_filter",
+#     )
+filter_global_south = False
 
 # UN member states: label+help line, then control line
 label_col, help_col = st.columns([1, 4])
 with label_col:
     st.markdown("**UN member states**")
 with help_col:
-    st.caption("Filter results to works where at least one institution is from the selected UN member state (https://www.un.org/en/about-us/member-states). When this filter is not applied, results will include works from any country or institution worldwide.")
+    st.caption("Filter results to works where at least one institution/affiliation is from the selected UN member state (https://www.un.org/en/about-us/member-states). When this filter is not applied, results will include works from any country or institution worldwide.")
 state_col1, state_col2 = st.columns([1, 4])
 with state_col1:
     st.write("")
@@ -682,13 +703,7 @@ if st.session_state.get("show_html_preview") and cached_payload:
 # Re-render cached results on rerun (e.g., download click)
 if cached_payload and not did_search:
     results_container.success(cached_payload.get("summary", "Results"))
-    caption_text = cached_payload.get("caption")
-    if caption_text:
-        results_container.caption(caption_text)
-    display_json = cached_payload.get("display_json")
-    if display_json:
-        json_container = results_container.container(height=420, border=True)
-        json_container.code(display_json, language="json")
+    # No caption or JSON preview for results.
 
 # Re-render cached analysis on rerun (e.g., download click)
 if st.session_state.get("last_analyze_triggered") and cached_payload and not did_analyze:
