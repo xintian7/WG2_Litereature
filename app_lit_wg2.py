@@ -360,6 +360,11 @@ with st.sidebar:
         "[feedback form](?page=feedback)."
     )
 
+    st.sidebar.markdown("### Other WGII TSU Apps")
+    st.sidebar.markdown(
+        "[WGII LLM App](https://wg2llm.streamlit.app/)"
+    )
+
     st.sidebar.markdown("### To-do")
     st.sidebar.checkbox("General maintenance after LAM2 (v0.1b)", value=False, key="todo_auth_gs")
     st.sidebar.checkbox("Add multi-page tabs (v0.2)", value=False, key="todo_multi_page")
