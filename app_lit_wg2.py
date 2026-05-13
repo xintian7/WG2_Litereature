@@ -362,7 +362,7 @@ with input_col:
     openalex_api = st.text_input(
         "",
         value="",
-        placeholder="Placeholder for a future version (currently not required for version 0.1c)",
+        placeholder="Placeholder for a future version (currently not required for version 0.1a)",
         label_visibility="collapsed",
         key="openalex_api_input",
     )
@@ -522,7 +522,7 @@ label_col, help_col = st.columns([1, 4])
 with label_col:
     st.markdown("**Language**")
 with help_col:
-    st.caption("Filter results by language. Default is English.")
+    st.caption("Filter results by language. Default is English. When selecting other languages, the keywords can be in the selected language or in English, which will give different results. We are working on a future version to allow more flexible combinations of languages and keywords.")
 lang_col1, lang_col2 = st.columns([1, 4])
 with lang_col1:
     st.write("")
@@ -784,6 +784,7 @@ with help_col:
     st.caption("Select one or more topics to display relevant publications.")
 
 cached_payload = st.session_state.get("last_payload")
+NO_GENERATED_TOPICS_LABEL = "No Generated Topics"
 
 # Topic filter control for HTML preview
 html_records_all = []
@@ -805,15 +806,19 @@ if isinstance(html_records_all, list) and html_records_all:
 
 if isinstance(html_records_all, list) and html_records_all:
     topic_set = set()
+    has_no_generated_topics = False
     for rec in html_records_all:
         if not isinstance(rec, dict):
             continue
         topics_str = (rec.get("Topics") or "").strip()
         if not topics_str:
+            has_no_generated_topics = True
             continue
         for t in [x.strip() for x in topics_str.split(";") if x.strip()]:
             topic_set.add(t)
     html_topic_options = sorted(topic_set, key=str.lower)
+    if has_no_generated_topics:
+        html_topic_options.append(NO_GENERATED_TOPICS_LABEL)
 
 flt_col1, flt_col2 = st.columns([1, 4])
 with flt_col1:
@@ -886,14 +891,18 @@ if st.session_state.get("show_html_preview") and cached_payload:
             payload_for_html["json"] = json.dumps([], ensure_ascii=False)
             html_container.caption("Filtered results: 0")
         else:
-            selected_lc = {t.lower() for t in selected_html_topics}
+            include_no_generated_topics = NO_GENERATED_TOPICS_LABEL in selected_html_topics
+            selected_lc = {
+                t.lower() for t in selected_html_topics
+                if t != NO_GENERATED_TOPICS_LABEL
+            }
             filtered_records = []
             for rec in html_records_all:
                 if not isinstance(rec, dict):
                     continue
                 topics_str = (rec.get("Topics") or "").strip()
                 rec_topics = {x.strip().lower() for x in topics_str.split(";") if x.strip()}
-                if rec_topics.intersection(selected_lc):
+                if rec_topics.intersection(selected_lc) or (include_no_generated_topics and not rec_topics):
                     filtered_records.append(rec)
 
             payload_for_html = dict(cached_payload)

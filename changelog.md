@@ -58,6 +58,8 @@ Main activities:
 - Refined topic multiselect selected-item display to avoid overlap and improve visibility while keeping one topic per line in the Topic filter. (file: `app_lit_wg2.py`)
 - Scoped Topic-filter-specific multiselect styling so the Type selector keeps its original compact display behavior. (file: `app_lit_wg2.py`)
 - Updated placeholder actions (Load CSV, Similar works, Citing works, Cited works) to grey button style with consistent sizing, while preserving click feedback messages for under-construction features. (files: `app_lit_wg2.py`, `button_html.py`)
+- Added Topic-filter support for records without generated topics by introducing a `No Generated Topics` option. (file: `app_lit_wg2.py`)
+- Updated Select all topics behavior to include records with empty/missing topic values through the `No Generated Topics` bucket. (file: `app_lit_wg2.py`)
 
 Notes & next steps:
 - When placeholder features are implemented, switch these buttons back to active primary styling and replace informational messages with workflows.
