@@ -271,10 +271,38 @@ div.stButton > button[kind="primary"] {
     min-height: 48px;
     padding: 0.5rem 1.25rem;
     white-space: nowrap;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 div.stButton > button[kind="primary"]:hover {
     background-color: #166aa3;
     border-color: #166aa3;
+}
+
+div.stButton > button[kind="secondary"] {
+    background-color: #a3a3a3;
+    color: #ffffff;
+    border: 1px solid #a3a3a3;
+    min-height: 48px;
+    padding: 0.5rem 1.25rem;
+    white-space: nowrap;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+div.stButton > button[kind="secondary"]:hover {
+    background-color: #8a8a8a;
+    border-color: #8a8a8a;
+}
+
+div.stButton > button[kind="primary"]:disabled {
+    background-color: #a3a3a3;
+    color: #ffffff;
+    border-color: #a3a3a3;
+    cursor: not-allowed;
 }
 /* Download button styling to match primary */
 div.stDownloadButton > button {
@@ -284,10 +312,41 @@ div.stDownloadButton > button {
     min-height: 48px;
     padding: 0.5rem 1.25rem;
     white-space: nowrap;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 div.stDownloadButton > button:hover {
     background-color: #166aa3;
     border-color: #166aa3;
+}
+
+div.stFormSubmitButton > button {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Show selected topics one per line without text overlap (topic filter only) */
+div[data-testid="stMultiSelect"]:has(input[id*="html_topic_filter"]) [data-baseweb="tag"] {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100% !important;
+    min-height: 2rem;
+    margin-right: 0;
+}
+div[data-testid="stMultiSelect"]:has(input[id*="html_topic_filter"]) [data-baseweb="tag"] > span {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -303,7 +362,7 @@ with input_col:
     openalex_api = st.text_input(
         "",
         value="",
-        placeholder="Placeholder for a future version (currently not required for version 0.1)",
+        placeholder="Placeholder for a future version (currently not required for version 0.1c)",
         label_visibility="collapsed",
         key="openalex_api_input",
     )
@@ -718,21 +777,13 @@ with btn_col:
 st.divider()
 st.markdown("<h3 style='text-align:center'>Literature Review & Export 📑</h3>", unsafe_allow_html=True)
 
+label_col, help_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**Filter Topic**")
+with help_col:
+    st.caption("Select one or more topics to display relevant publications.")
+
 cached_payload = st.session_state.get("last_payload")
-_, html_btn_wrap, _ = st.columns([1, 4, 1])
-with html_btn_wrap:
-    html_btn_col1, html_btn_col2, html_btn_col3 = st.columns([2, 2, 2])
-    with html_btn_col1:
-        if st.button("View HTML", key="view_html_button", type="primary", use_container_width=True):
-            if cached_payload:
-                st.session_state["show_html_preview"] = True
-            else:
-                st.warning("Run a search first to view HTML results.")
-    with html_btn_col2:
-        if st.button("Load CSV", key="load_csv_button", type="primary", use_container_width=True):
-            st.warning("Load CSV is still under construction.")
-    with html_btn_col3:
-        st.write("")
 
 # Topic filter control for HTML preview
 html_records_all = []
@@ -763,12 +814,6 @@ if isinstance(html_records_all, list) and html_records_all:
         for t in [x.strip() for x in topics_str.split(";") if x.strip()]:
             topic_set.add(t)
     html_topic_options = sorted(topic_set, key=str.lower)
-
-label_col, help_col = st.columns([1, 4])
-with label_col:
-    st.markdown("**Filter Topic**")
-with help_col:
-    st.caption("Select one or more topics to filter the HTML preview results.")
 
 flt_col1, flt_col2 = st.columns([1, 4])
 with flt_col1:
@@ -816,6 +861,21 @@ with flt_col2:
         label_visibility="collapsed",
         on_change=_on_topic_filter_change,
     )
+
+_, html_btn_wrap, _ = st.columns([1, 4, 1])
+with html_btn_wrap:
+    html_btn_col1, html_btn_col2, html_btn_col3 = st.columns([2, 2, 2])
+    with html_btn_col1:
+        if st.button("Read Publications", key="view_html_button", type="primary", use_container_width=True):
+            if cached_payload:
+                st.session_state["show_html_preview"] = True
+            else:
+                st.warning("Run a search first to view HTML results.")
+    with html_btn_col2:
+        if st.button("Load CSV", key="load_csv_button", type="secondary", use_container_width=True):
+            st.warning("Load CSV is still under construction.")
+    with html_btn_col3:
+        st.write("")
 
 html_container = st.container()
 if st.session_state.get("show_html_preview") and cached_payload:

@@ -164,21 +164,21 @@ def render_html_preview(payload: dict | None, container: Any = None, top_n: int 
             similar_clicked = st.button(
                 "Similar works",
                 key=f"similar_pub_{rec_hash}",
-                type="primary",
+                type="secondary",
                 use_container_width=True,
             )
         with btn_col3:
             citing_clicked = st.button(
                 "Citing works",
                 key=f"citing_pub_{rec_hash}",
-                type="primary",
+                type="secondary",
                 use_container_width=True,
             )
         with btn_col4:
             cited_clicked = st.button(
                 "Cited works",
                 key=f"cited_pub_{rec_hash}",
-                type="primary",
+                type="secondary",
                 use_container_width=True,
             )
 

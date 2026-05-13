@@ -49,4 +49,19 @@ Notes & next steps:
 
 ---
 
-Last updated: 2026-05-08
+Date: 2026-05-13
+Version: v0.1c
+
+Main activities:
+- Center-aligned button labels for primary, download, and form submit buttons for consistent readability. (file: `app_lit_wg2.py`)
+- Moved Topic filter section (title, help text, select/deselect toggles, and dropdown) above the Read Publications / Load CSV action row. (file: `app_lit_wg2.py`)
+- Refined topic multiselect selected-item display to avoid overlap and improve visibility while keeping one topic per line in the Topic filter. (file: `app_lit_wg2.py`)
+- Scoped Topic-filter-specific multiselect styling so the Type selector keeps its original compact display behavior. (file: `app_lit_wg2.py`)
+- Updated placeholder actions (Load CSV, Similar works, Citing works, Cited works) to grey button style with consistent sizing, while preserving click feedback messages for under-construction features. (files: `app_lit_wg2.py`, `button_html.py`)
+
+Notes & next steps:
+- When placeholder features are implemented, switch these buttons back to active primary styling and replace informational messages with workflows.
+
+---
+
+Last updated: 2026-05-13
