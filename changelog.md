@@ -66,4 +66,23 @@ Notes & next steps:
 
 ---
 
-Last updated: 2026-05-13
+Date: 2026-05-19
+Version: v0.1d
+
+Main activities:
+- Reworked keyword query behavior to support explicit Boolean expressions in the UI and aligned backend retrieval with OpenAlex field-based search semantics for improved count parity with OpenAlex Web. (files: `app_lit_wg2.py`, `button_search.py`)
+- Updated keyword guidance copy with line-by-line formatting, highlighted operator labels, and OpenAlex searching references; added clearer notes on supported operators and semantic search reference text. (file: `app_lit_wg2.py`)
+- Added parallel load-test utility `test_para.py` to simulate concurrent search users and report latency/error metrics for stress testing. (file: `test_para.py`)
+- Increased maximum selectable publication types from 3 to 5 and synchronized the limit across UI and backend filtering logic. (files: `utils.py`, `app_lit_wg2.py`, `button_search.py`)
+- Changed default search settings to better match expected workflow: default language set to English and default publication type set to report. (file: `app_lit_wg2.py`)
+- Improved analysis figure layout/readability for the yearly stacked chart by reducing x-axis tick clutter and repositioning legend/title spacing. (file: `button_analyze.py`)
+- Moved `Sort by` control from the search section to the Literature Review & Export section and positioned it after Topic filter controls. (file: `app_lit_wg2.py`)
+- Refined UN member state helper text emphasis (bold/blue styling updates) and updated placeholder/help wording for member-state filtering. (file: `app_lit_wg2.py`)
+
+Notes & next steps:
+- Consider pinning one canonical search mode/field in documentation (Boolean vs semantic) and documenting expected count differences when additional filters (language/type/year) are applied.
+- Consider adding an optional "Match OpenAlex Web defaults" toggle that pre-fills year/language/type settings for easier parity checks.
+
+---
+
+Last updated: 2026-05-19

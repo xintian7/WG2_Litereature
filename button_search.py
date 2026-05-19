@@ -1,12 +1,12 @@
 import json
+import re
 from typing import Any
 
 import pandas as pd
+import requests
 import streamlit as st
-from pyalex import Works
-from pyalex.api import QueryError
 
-from utils import OPENALEX_PAGE_SIZE, DISPLAY_CONTAINER_HEIGHT
+from utils import OPENALEX_PAGE_SIZE, DISPLAY_CONTAINER_HEIGHT, MAX_WORK_TYPES
 
 
 def get_work_topics(work: dict[str, Any]) -> str:
@@ -86,6 +86,114 @@ def _matches_all_keywords(work: dict[str, Any], keywords_list: list[str]) -> boo
     return all(kw.lower() in blob for kw in keywords_list)
 
 
+def _tokenize_boolean_query(query: str) -> list[str]:
+    """Tokenize a boolean expression supporting quotes, AND/OR, and parentheses."""
+    pattern = r'"[^"\\]*(?:\\.[^"\\]*)*"|\(|\)|\bAND\b|\bOR\b|[^\s()]+'
+    return [t for t in re.findall(pattern, query, flags=re.IGNORECASE) if t.strip()]
+
+
+def _normalize_term(token: str) -> str:
+    token = token.strip()
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        return token[1:-1].strip().lower()
+    return token.lower()
+
+
+def _insert_implicit_and(tokens: list[str]) -> list[str]:
+    """Insert implicit AND between adjacent operands/parentheses."""
+    if not tokens:
+        return tokens
+
+    out: list[str] = []
+
+    def _is_operand(tok: str) -> bool:
+        upper = tok.upper()
+        return tok not in ("(", ")") and upper not in ("AND", "OR")
+
+    for i, tok in enumerate(tokens):
+        if i > 0:
+            prev = tokens[i - 1]
+            if (
+                (_is_operand(prev) or prev == ")")
+                and (_is_operand(tok) or tok == "(")
+            ):
+                out.append("AND")
+        out.append(tok)
+
+    return out
+
+
+def _to_rpn(tokens: list[str]) -> list[str]:
+    """Convert infix boolean tokens to RPN using shunting-yard."""
+    precedence = {"OR": 1, "AND": 2}
+    output: list[str] = []
+    operators: list[str] = []
+
+    for tok in tokens:
+        upper = tok.upper()
+        if tok == "(":
+            operators.append(tok)
+        elif tok == ")":
+            while operators and operators[-1] != "(":
+                output.append(operators.pop())
+            if not operators or operators[-1] != "(":
+                raise ValueError("Mismatched parentheses in keyword expression.")
+            operators.pop()
+        elif upper in ("AND", "OR"):
+            while (
+                operators
+                and operators[-1] in precedence
+                and precedence[operators[-1]] >= precedence[upper]
+            ):
+                output.append(operators.pop())
+            operators.append(upper)
+        else:
+            output.append(_normalize_term(tok))
+
+    while operators:
+        op = operators.pop()
+        if op in ("(", ")"):
+            raise ValueError("Mismatched parentheses in keyword expression.")
+        output.append(op)
+
+    return output
+
+
+def _extract_literals(tokens: list[str]) -> list[str]:
+    literals: list[str] = []
+    seen: set[str] = set()
+    for tok in tokens:
+        upper = tok.upper()
+        if tok in ("(", ")") or upper in ("AND", "OR"):
+            continue
+        lit = _normalize_term(tok)
+        if not lit or lit in seen:
+            continue
+        seen.add(lit)
+        literals.append(lit)
+    return literals
+
+
+def _evaluate_rpn_expression(work: dict[str, Any], rpn: list[str]) -> bool:
+    """Evaluate parsed boolean expression against a work text blob."""
+    blob = _build_work_text_blob(work)
+    stack: list[bool] = []
+
+    for tok in rpn:
+        if tok in ("AND", "OR"):
+            if len(stack) < 2:
+                raise ValueError("Invalid keyword expression.")
+            right = stack.pop()
+            left = stack.pop()
+            stack.append(left and right if tok == "AND" else left or right)
+        else:
+            stack.append(tok in blob)
+
+    if len(stack) != 1:
+        raise ValueError("Invalid keyword expression.")
+    return stack[0]
+
+
 def perform_search(
     keyword: str,
     year_range: tuple[int, int],
@@ -122,49 +230,49 @@ def perform_search(
         if container is not None:
             container.empty()
 
-        # Prepare keywords list (split on ';')
-        keywords_list = [k.strip() for k in keyword.split(";") if k.strip()]
-        if not keywords_list:
+        keyword_expr = keyword.strip()
+        if not keyword_expr:
             st.warning("Please enter at least one keyword.")
             return
 
         with st.spinner("Searching..."):
-            # Build filter kwargs (avoid passing multi-value `type` to API)
-            filter_kwargs = {
-                "from_publication_date": f"{start_year}-01-01",
-                "to_publication_date": f"{end_year}-12-31",
-            }
+            # Align with OpenAlex UI behavior by querying title+abstract directly.
+            search_field = "semantic.search" if use_semantic_search else "title_and_abstract.search"
+            filter_parts = [
+                f"{search_field}:{keyword_expr}",
+                f"from_publication_date:{start_year}-01-01",
+                f"to_publication_date:{end_year}-12-31",
+            ]
             if language:
-                filter_kwargs["language"] = language
+                filter_parts.append(f"language:{language}")
             if institution_country_code:
-                filter_kwargs["institutions.country_code"] = institution_country_code
+                filter_parts.append(f"institutions.country_code:{institution_country_code}")
+            if is_global_south:
+                filter_parts.append("institutions.is_global_south:true")
+            if work_types:
+                types_to_query = work_types[:MAX_WORK_TYPES]
+                filter_parts.append(f"type:{'|'.join(types_to_query)}")
 
-            def _build_base_query() -> Any:
-                query = Works().search(combined_query).filter(**filter_kwargs)
-                if is_global_south:
-                    query = query.filter(institutions={"is_global_south": True})
-                return query
+            base_params: dict[str, Any] = {
+                "filter": ",".join(filter_parts),
+            }
 
-            all_results = []
-
-            def _format_keyword(kw):
-                return f'"{kw}"' if " " in kw else kw
-
-            combined_query = (
-                " ".join(keywords_list)
-                if use_semantic_search
-                else " AND ".join(_format_keyword(kw) for kw in keywords_list)
-            )
             requested_n = max(int(num_results), 1)
             openalex_total = 0
 
-            def _fetch_paginated(query: Any, limit: int) -> list[dict[str, Any]]:
+            def _fetch_paginated(params: dict[str, Any], limit: int) -> list[dict[str, Any]]:
                 """Fetch up to `limit` records across multiple OpenAlex pages."""
-                page_size = OPENALEX_PAGE_SIZE
+                page_size = min(OPENALEX_PAGE_SIZE, 100)
                 page = 1
-                collected = []
+                collected: list[dict[str, Any]] = []
                 while len(collected) < limit:
-                    batch = query.get(per_page=page_size, page=page)
+                    response = requests.get(
+                        "https://api.openalex.org/works",
+                        params={**params, "per_page": page_size, "page": page},
+                        timeout=30,
+                    )
+                    response.raise_for_status()
+                    batch = (response.json() or {}).get("results") or []
                     if not batch:
                         break
                     collected.extend(batch)
@@ -175,89 +283,58 @@ def perform_search(
 
             # Map UI sort option to OpenAlex sort kwargs
             _sort_map = {
-                "Relevance": {"relevance_score": "desc"},
+                "Relevance": None,
                 "Citation count": {"cited_by_count": "desc"},
                 "Date": {"publication_date": "desc"},
             }
-            sort_kwargs = _sort_map.get(sort_by, {"relevance_score": "desc"})
+            sort_kwargs = _sort_map.get(sort_by, None)
 
-            if work_types:
-                # Collect results per type and enforce num_results per type
-                types_to_query = work_types[:3]
-                for t in types_to_query:
-                    per_type_results = []
-                    try:
-                        type_query = _build_base_query().filter(type=t)
-                        try:
-                            openalex_total += int(type_query.count() or 0)
-                        except Exception:
-                            pass
-                        per_type_results = _fetch_paginated(
-                            type_query.sort(**sort_kwargs),
-                            requested_n,
-                        )
-                    except Exception:
-                        per_type_results = []
+            def _apply_sort(params: dict[str, Any]) -> dict[str, Any]:
+                new_params = dict(params)
+                if not sort_kwargs:
+                    return new_params
+                sort_field, sort_dir = next(iter(sort_kwargs.items()))
+                new_params["sort"] = f"{sort_field}:{sort_dir}"
+                return new_params
 
-                    # Deduplicate within type and trim to num_results
-                    seen = set()
-                    deduped_type = []
-                    for r in per_type_results:
-                        rid = r.get("id") if isinstance(r, dict) else None
-                        if not rid:
-                            rid = (r.get("ids") or {}).get("openalex") if isinstance(r, dict) else None
-                        if not rid or rid in seen:
-                            continue
-                        seen.add(rid)
-                        deduped_type.append(r)
-                        if len(deduped_type) >= int(num_results):
-                            break
+            query_params = _apply_sort(base_params)
 
-                    all_results.extend(deduped_type)
-
-            else:
-                # No type filter: aggregate across keywords and trim to total
+            try:
                 try:
-                    base_query = _build_base_query()
-                    try:
-                        openalex_total = int(base_query.count() or 0)
-                    except Exception:
-                        openalex_total = 0
-                    all_results = _fetch_paginated(
-                        base_query.sort(**sort_kwargs),
-                        requested_n,
+                    count_response = requests.get(
+                        "https://api.openalex.org/works",
+                        params={**query_params, "per_page": 1},
+                        timeout=30,
                     )
+                    count_response.raise_for_status()
+                    openalex_total = int((count_response.json() or {}).get("meta", {}).get("count") or 0)
                 except Exception:
-                    all_results = []
+                    openalex_total = 0
+                all_results = _fetch_paginated(
+                    query_params,
+                    requested_n,
+                )
+            except Exception:
+                all_results = []
 
-                # Deduplicate overall and trim to requested total
-                seen = set()
-                unique_results = []
-                for r in all_results:
-                    rid = r.get("id") if isinstance(r, dict) else None
-                    if not rid:
-                        rid = (r.get("ids") or {}).get("openalex") if isinstance(r, dict) else None
-                    if not rid or rid in seen:
-                        continue
-                    seen.add(rid)
-                    unique_results.append(r)
-                    if len(unique_results) >= int(num_results):
-                        break
+            # Deduplicate overall and trim to requested total
+            seen = set()
+            unique_results = []
+            for r in all_results:
+                rid = r.get("id") if isinstance(r, dict) else None
+                if not rid:
+                    rid = (r.get("ids") or {}).get("openalex") if isinstance(r, dict) else None
+                if not rid or rid in seen:
+                    continue
+                seen.add(rid)
+                unique_results.append(r)
+                if len(unique_results) >= int(num_results):
+                    break
 
-                all_results = unique_results
-
-            # Enforce strict AND semantics for ';' separated keyword phrases in Boolean mode.
-            if keywords_list and not use_semantic_search:
-                all_results = [
-                    w for w in all_results
-                    if isinstance(w, dict) and _matches_all_keywords(w, keywords_list)
-                ]
+            all_results = unique_results
 
             results = all_results
 
-    except QueryError as e:
-        st.error(f"Search failed: {e}")
-        return
     except Exception as e:
         st.error(f"Unexpected error during search: {e}")
         return

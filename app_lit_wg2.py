@@ -452,7 +452,20 @@ label_col, help_col = st.columns([1, 4])
 with label_col:
     st.markdown("**Keyword**")
 with help_col:
-    st.caption("You can add multiple keywords below, using ; to separate. The sign ; indicates an AND operator.")
+    st.markdown(
+        "<div style='font-size: 0.875rem; color: rgba(49, 51, 63, 0.8);'>"
+        "Use Boolean operators to combine terms:<br>"
+        "<b style='color:#1f77b4'>AND</b>: requires all terms,<br>"
+        "<b style='color:#1f77b4'>OR</b>: allows either term,<br>"
+        "<b style='color:#1f77b4'>Parentheses</b>: group logic,<br>"
+        "<b style='color:#1f77b4'>Quotes</b>: exact phrases.<br>"
+        "<b style='color:#1f77b4'>Notes</b>: Other Operators are not supported at this moment. "
+        "Please submit feedback using the feedback form if you need additional operators.<br>"
+        "<b style='color:#1f77b4'>Example</b>: \"climate change\" AND (water OR \"land use\") AND Bahamas.<br>"
+        "<b style='color:#1f77b4'>Reference</b>: https://developers.openalex.org/guides/searching"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 kw_col1, kw_col2 = st.columns([1, 4])
 with kw_col1:
     st.write("")
@@ -462,7 +475,7 @@ with kw_col2:
         "Semantic search",
         value=False,
         key="semantic_search",
-        help="If checked, use semantic search (broader matching). If unchecked, use regular Boolean search (more precise matching)",
+        help="If checked, use semantic search (broader matching). If unchecked, use regular Boolean search (more precise matching). Reference: https://developers.openalex.org/guides/semantic-search",
     )
 
 # Publication year: label+help line, then slider line
@@ -475,15 +488,17 @@ yr_col1, yr_col2 = st.columns([1, 4])
 with yr_col1:
     st.write("")
 with yr_col2:
-    year_range = st.slider("", 1900, 2027, (2000, 2026), label_visibility="collapsed", key="yr")
+    year_range = st.slider("", 1900, 2027, (2000, 2025), label_visibility="collapsed", key="yr")
 
 # Type: label+help line, then multiselect line
 label_col, help_col = st.columns([1, 4])
 with label_col:
     st.markdown("**Type**")
 with help_col:
-    st.caption("Due to processing time, you can select up to 3 categories at one time. "
-    "It will be improved in a future version to allow more categories.")
+    st.caption(
+        f"Due to processing time, you can select up to {MAX_WORK_TYPES} categories at one time. "
+        "It will be improved in a future version to allow more categories."
+    )
 type_col1, type_col2 = st.columns([1, 4])
 with type_col1:
     st.write("")
@@ -509,7 +524,7 @@ with type_col2:
             "standard",
             "supplementary-materials",
         ],
-        default=["report", "preprint"],
+        default=["report"],
         label_visibility="collapsed",
         key="wt",
     )
@@ -530,6 +545,7 @@ with lang_col2:
     language_option = st.selectbox(
         "",
         options=[
+            "Any",
             "English",
             "Arabic",
             "Chinese",
@@ -550,11 +566,12 @@ with lang_col2:
             # "Ukrainian",
             # "Vietnamese",
         ],
-        index=0,
+        index=1,
         label_visibility="collapsed",
         key="lang",
     )
     language_code_map = {
+        "Any": None,
         "English": "en",
         "Arabic": "ar",
         "Chinese": "zh",
@@ -599,7 +616,17 @@ label_col, help_col = st.columns([1, 4])
 with label_col:
     st.markdown("**UN member states**")
 with help_col:
-    st.caption("Filter results to works where at least one institution/affiliation is from the selected UN member state (https://www.un.org/en/about-us/member-states). When this filter is not applied, results will include works from any country or institution worldwide.")
+    st.markdown(
+        "<div style='font-size: 0.875rem; color: rgba(49, 51, 63, 0.8);'>"
+        "Filter results to works where "
+        "<span style='color:#1f77b4; font-weight:600;'>"
+        "at least one institution/affiliation of this publication is from the selected UN member state"
+        "</span>"
+        " (https://www.un.org/en/about-us/member-states). "
+        "When this filter is not applied, results will include works from any state worldwide."
+        "</div>",
+        unsafe_allow_html=True,
+    )
 state_col1, state_col2 = st.columns([1, 4])
 with state_col1:
     st.write("")
@@ -608,7 +635,7 @@ with state_col2:
         "",
         options=UN_MEMBER_STATES,
         index=None,
-        placeholder="Select a UN member state",
+        placeholder="You can leave this field empty to include works from all states.",
         label_visibility="collapsed",
         key="un_member_state",
     )
@@ -617,32 +644,16 @@ with state_col2:
 # Number of results: label line then control line
 label_col, help_col = st.columns([1, 4])
 with label_col:
-    st.markdown("**Max Number / Type**")
+    st.markdown("**Max Number**")
 with help_col:
-    st.caption("Select how many results per publication type (max 5000 for the time being). More results take longer to load.")
+    st.caption("Select the maximum number of results to return (max 5000 for the time being). More results take longer to load.")
 nr_col1, nr_col2 = st.columns([1, 4])
 with nr_col1:
     st.write("")
 with nr_col2:
     num_results = st.slider("", 1, 5000, 500, label_visibility="collapsed", key="nr")
 
-# Sort by: label+help line, then control line
-label_col, help_col = st.columns([1, 4])
-with label_col:
-    st.markdown("**Sort by**")
-with help_col:
-    st.caption("Choose how to order the results: by relevance score, citation count, or publication date.")
-sort_col1, sort_col2 = st.columns([1, 4])
-with sort_col1:
-    st.write("")
-with sort_col2:
-    sort_by = st.selectbox(
-        "",
-        options=["Relevance", "Citation count", "Date"],
-        index=0,
-        label_visibility="collapsed",
-        key="sb",
-    )
+sort_by = st.session_state.get("sb", "Relevance")
 
 # Container for results (keeps results snug under the search area)
 results_container = st.container()
@@ -865,6 +876,26 @@ with flt_col2:
         key="html_topic_filter",
         label_visibility="collapsed",
         on_change=_on_topic_filter_change,
+    )
+
+label_col, help_col = st.columns([1, 4])
+with label_col:
+    st.markdown("**Sort by**")
+with help_col:
+    st.caption("Choose how to order the results: by relevance score, citation count, or publication date.")
+sort_col1, sort_col2 = st.columns([1, 4])
+with sort_col1:
+    st.write("")
+with sort_col2:
+    current_sort = st.session_state.get("sb", "Relevance")
+    sort_options = ["Relevance", "Citation count", "Date"]
+    sort_index = sort_options.index(current_sort) if current_sort in sort_options else 0
+    st.selectbox(
+        "",
+        options=sort_options,
+        index=sort_index,
+        label_visibility="collapsed",
+        key="sb",
     )
 
 _, html_btn_wrap, _ = st.columns([1, 4, 1])

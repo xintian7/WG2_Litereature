@@ -103,6 +103,7 @@ def perform_analyze(
             .reindex(all_years, fill_value=0)
         )
         cumulative_totals = yearly_totals.cumsum()
+        tickvals = [str(y) for i, y in enumerate(all_years) if i % 2 == 0]
 
         fig_pub.add_trace(
             go.Scatter(
@@ -131,6 +132,8 @@ def perform_analyze(
             xaxis=dict(
                 title="Publication Year",
                 type="category",
+                tickmode="array",
+                tickvals=tickvals,
                 tickangle=-45,
                 tickfont=dict(size=11),
             ),
@@ -144,9 +147,16 @@ def perform_analyze(
                 side="right",
                 showgrid=False,
             ),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-            height=520,
-            margin=dict(l=80, r=80, t=80, b=90),
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=1,
+                xanchor="left",
+                x=1.01,
+                font=dict(size=10),
+            ),
+            height=600,
+            margin=dict(l=80, r=190, t=80, b=90),
             paper_bgcolor="white",
             plot_bgcolor="white",
         )
