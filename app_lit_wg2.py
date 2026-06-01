@@ -7,8 +7,9 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+from typing import Any
 
-from button_search import perform_search
+from button_search import normalize_keyword_query, perform_search
 from button_analyze import perform_analyze
 from button_neo4j import build_neo4j_cypher
 from button_html import render_html_preview
@@ -129,6 +130,98 @@ def _get_query_param(param_name: str) -> str | None:
 
     value = str(value).strip()
     return value or None
+
+
+def _run_keyword_search(
+    keyword_value: str,
+    year_range: tuple[int, int],
+    num_results: int,
+    work_types: list[str],
+    language: str | None,
+    language_label: str,
+    is_global_south: bool,
+    institution_country_code: str | None,
+    member_state: str | None,
+    container: Any,
+    display_limit: int,
+    sort_by: str,
+    use_semantic_search: bool,
+) -> dict | None:
+    """Run a search, cache the payload, and log it when successful."""
+    result_payload = perform_search(
+        keyword_value,
+        year_range,
+        num_results,
+        work_types=work_types,
+        language=language,
+        is_global_south=is_global_south,
+        institution_country_code=institution_country_code,
+        container=container,
+        display_limit=display_limit,
+        sort_by=sort_by,
+        use_semantic_search=use_semantic_search,
+    )
+    st.session_state["last_payload"] = result_payload
+    st.session_state.pop("last_analyze_triggered", None)
+    st.session_state.pop("html_skipped_publications", None)
+
+    if result_payload:
+        try:
+            log_ok, log_msg = _write_search_log_to_notion(
+                keyword=keyword_value,
+                year_range=year_range,
+                work_types=work_types,
+                language=language_label,
+                member_state=member_state,
+                max_number=num_results,
+                returned_results=int(result_payload.get("total") or 0),
+            )
+        except Exception as exc:
+            log_ok, log_msg = False, f"Failed to write search log to Notion: {exc}"
+        if not log_ok:
+            st.warning(log_msg)
+
+    return result_payload
+
+
+def _accept_keyword_correction(corrected_keyword: str) -> None:
+    """Persist the corrected keyword into the textbox state."""
+    st.session_state["kw"] = corrected_keyword
+    st.session_state["keyword_search_decision"] = "apply"
+
+
+def _keep_keyword_correction() -> None:
+    """Keep the original keyword in the textbox state."""
+    st.session_state["keyword_search_decision"] = "keep"
+
+
+@st.dialog("Review keyword correction")
+def _keyword_correction_dialog(review: dict[str, str]) -> None:
+    """Ask the user to confirm the auto-corrected keyword query."""
+    st.write("Your keyword search was adjusted to follow Boolean search syntax.")
+    st.markdown(f"**Original:** {review['original']}")
+    st.markdown(f"**Suggested:** {review['corrected']}")
+    if review.get("explanation"):
+        st.info(review["explanation"])
+
+    left_col, right_col = st.columns(2)
+    with left_col:
+        if st.button(
+            "Use corrected query",
+            key="keyword_correction_accept",
+            type="primary",
+            use_container_width=True,
+        ):
+            _accept_keyword_correction(review["corrected"])
+            st.rerun()
+    with right_col:
+        if st.button(
+            "Keep original query",
+            key="keyword_correction_keep",
+            use_container_width=True,
+        ):
+            _keep_keyword_correction()
+            st.rerun()
 
 
 def _write_feedback_to_notion(
@@ -768,40 +861,48 @@ with btn_col:
             type="primary",
             use_container_width=True,
         ):
-            did_search = True
-            result_payload = perform_search(
-                keyword,
-                year_range,
-                num_results,
-                work_types=work_types,
-                language=selected_language,
-                is_global_south=filter_global_south,
-                institution_country_code=selected_member_state_code,
-                container=results_container,
-                display_limit=5,
-                sort_by=sort_by,
-                use_semantic_search=use_semantic_search,
-            )
-            st.session_state["last_payload"] = result_payload
-            # Clear any cached analysis when a new search is run
-            st.session_state.pop("last_analyze_triggered", None)
-            st.session_state.pop("html_skipped_publications", None)
-
-            if result_payload:
-                try:
-                    log_ok, log_msg = _write_search_log_to_notion(
-                        keyword=keyword,
-                        year_range=year_range,
-                        work_types=work_types,
-                        language=language_option,
-                        member_state=selected_member_state,
-                        max_number=num_results,
-                        returned_results=int(result_payload.get("total") or 0),
-                    )
-                except Exception as exc:
-                    log_ok, log_msg = False, f"Failed to write search log to Notion: {exc}"
-                if not log_ok:
-                    st.warning(log_msg)
+            normalized_keyword, needs_review, explanation = normalize_keyword_query(keyword)
+            if needs_review and not use_semantic_search:
+                st.session_state["keyword_search_request"] = {
+                    "keyword": keyword,
+                    "year_range": year_range,
+                    "num_results": num_results,
+                    "work_types": work_types,
+                    "language": selected_language,
+                    "language_label": language_option,
+                    "is_global_south": filter_global_south,
+                    "institution_country_code": selected_member_state_code,
+                    "member_state": selected_member_state,
+                    "display_limit": 5,
+                    "sort_by": sort_by,
+                    "use_semantic_search": use_semantic_search,
+                }
+                st.session_state["keyword_search_review"] = {
+                    "original": keyword,
+                    "corrected": normalized_keyword,
+                    "explanation": explanation,
+                }
+                st.session_state.pop("keyword_search_decision", None)
+            else:
+                did_search = True
+                st.session_state.pop("keyword_search_request", None)
+                st.session_state.pop("keyword_search_review", None)
+                st.session_state.pop("keyword_search_decision", None)
+                _run_keyword_search(
+                    normalized_keyword,
+                    year_range,
+                    num_results,
+                    work_types,
+                    selected_language,
+                    language_option,
+                    filter_global_south,
+                    selected_member_state_code,
+                    selected_member_state,
+                    results_container,
+                    5,
+                    sort_by,
+                    use_semantic_search,
+                )
     with r1c2:
         if st.button(
             "Analyze Results",
@@ -826,6 +927,38 @@ with btn_col:
             st.session_state.pop("last_analyze_triggered", None)
             analyze_container.empty()
             st.rerun()
+
+    pending_review = st.session_state.get("keyword_search_review")
+    pending_request = st.session_state.get("keyword_search_request")
+    pending_decision = st.session_state.get("keyword_search_decision")
+
+    if pending_review and not pending_decision:
+        _keyword_correction_dialog(pending_review)
+
+    if pending_request and pending_decision:
+        request_keyword = pending_request.get("keyword", "")
+        if pending_decision == "apply":
+            request_keyword = pending_review.get("corrected", request_keyword) if pending_review else request_keyword
+
+        did_search = True
+        _run_keyword_search(
+            request_keyword,
+            pending_request.get("year_range", year_range),
+            pending_request.get("num_results", num_results),
+            pending_request.get("work_types", work_types),
+            pending_request.get("language", selected_language),
+            pending_request.get("language_label", language_option),
+            pending_request.get("is_global_south", filter_global_south),
+            pending_request.get("institution_country_code", selected_member_state_code),
+            pending_request.get("member_state", selected_member_state),
+            results_container,
+            pending_request.get("display_limit", 5),
+            pending_request.get("sort_by", sort_by),
+            pending_request.get("use_semantic_search", use_semantic_search),
+        )
+        st.session_state.pop("keyword_search_request", None)
+        st.session_state.pop("keyword_search_review", None)
+        st.session_state.pop("keyword_search_decision", None)
 
     payload = st.session_state.get("last_payload")
     payload_for_download = _payload_after_skips(payload)

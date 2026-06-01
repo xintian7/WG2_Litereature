@@ -88,7 +88,7 @@ def _matches_all_keywords(work: dict[str, Any], keywords_list: list[str]) -> boo
 
 def _tokenize_boolean_query(query: str) -> list[str]:
     """Tokenize a boolean expression supporting quotes, AND/OR, and parentheses."""
-    pattern = r'"[^"\\]*(?:\\.[^"\\]*)*"|\(|\)|\bAND\b|\bOR\b|[^\s()]+'
+    pattern = r'"[^"\\]*(?:\\.[^"\\]*)*"|\(|\)|,|;|\bAND\b|\bOR\b|[^\s(),;]+'
     return [t for t in re.findall(pattern, query, flags=re.IGNORECASE) if t.strip()]
 
 
@@ -192,6 +192,90 @@ def _evaluate_rpn_expression(work: dict[str, Any], rpn: list[str]) -> bool:
     if len(stack) != 1:
         raise ValueError("Invalid keyword expression.")
     return stack[0]
+
+
+def normalize_keyword_query(query: str) -> tuple[str, bool, str]:
+    """Normalize a keyword query for boolean search.
+
+    Returns a tuple of (corrected_query, needs_review, explanation).
+    """
+    raw_query = (query or "").strip()
+    if not raw_query:
+        return raw_query, False, ""
+
+    tokens = _tokenize_boolean_query(raw_query)
+    if not tokens:
+        return raw_query, False, ""
+
+    corrected_tokens: list[str] = []
+    phrase_terms: list[str] = []
+    quoted_phrases: list[str] = []
+
+    def flush_phrase() -> None:
+        nonlocal phrase_terms
+        if not phrase_terms:
+            return
+        if len(phrase_terms) == 1:
+            corrected_tokens.append(phrase_terms[0])
+        else:
+            phrase = " ".join(phrase_terms)
+            corrected_tokens.append(f'"{phrase}"')
+            quoted_phrases.append(phrase)
+        phrase_terms = []
+
+    for tok in tokens:
+        upper = tok.upper()
+        if tok in (",", ";"):
+            # Treat separators as delimiters between terms.
+            flush_phrase()
+            continue
+        if tok in ("(", ")") or upper in ("AND", "OR"):
+            flush_phrase()
+            corrected_tokens.append(upper if upper in ("AND", "OR") else tok)
+            continue
+
+        if len(tok) >= 2 and tok[0] == '"' and tok[-1] == '"':
+            flush_phrase()
+            corrected_tokens.append(f'"{tok[1:-1].strip()}"')
+            continue
+
+        phrase_terms.append(tok.strip())
+
+    flush_phrase()
+
+    final_tokens: list[str] = []
+    inserted_and_count = 0
+
+    def is_operand(token: str) -> bool:
+        return token not in ("(", ")") and token.upper() not in ("AND", "OR")
+
+    for index, token in enumerate(corrected_tokens):
+        if index > 0:
+            previous = corrected_tokens[index - 1]
+            if (is_operand(previous) or previous == ")") and (is_operand(token) or token == "("):
+                final_tokens.append("AND")
+                inserted_and_count += 1
+        final_tokens.append(token)
+
+    corrected_query = " ".join(final_tokens).strip()
+    needs_review = " ".join(raw_query.split()) != " ".join(corrected_query.split())
+
+    if not needs_review:
+        return raw_query, False, ""
+
+    explanation_parts: list[str] = []
+    if quoted_phrases:
+        explanation_parts.append(
+            "Wrapped these multi-word terms in double quotes: "
+            + ", ".join(f'\"{phrase}\"' for phrase in quoted_phrases)
+        )
+    if inserted_and_count:
+        explanation_parts.append("Inserted explicit AND between adjacent terms.")
+
+    if not explanation_parts:
+        explanation_parts.append("Adjusted the keyword syntax to match Boolean search rules.")
+
+    return corrected_query, True, " ".join(explanation_parts)
 
 
 def perform_search(
