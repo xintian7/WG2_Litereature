@@ -195,7 +195,7 @@ def _keep_keyword_correction() -> None:
     st.session_state["keyword_search_decision"] = "keep"
 
 
-@st.dialog("Review keyword correction")
+@st.dialog("Suggested keyword(s)")
 def _keyword_correction_dialog(review: dict[str, str]) -> None:
     """Ask the user to confirm the auto-corrected keyword query."""
     st.write("Your keyword search was adjusted to follow Boolean search syntax.")
