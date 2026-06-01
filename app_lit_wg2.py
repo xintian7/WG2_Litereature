@@ -938,7 +938,8 @@ with btn_col:
     if pending_request and pending_decision:
         request_keyword = pending_request.get("keyword", "")
         if pending_decision == "apply":
-            request_keyword = pending_review.get("corrected", request_keyword) if pending_review else request_keyword
+            # Use the same value shown in the keyword textbox after approval.
+            request_keyword = st.session_state.get("kw", request_keyword)
 
         did_search = True
         _run_keyword_search(
